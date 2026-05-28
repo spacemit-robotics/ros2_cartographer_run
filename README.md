@@ -19,9 +19,8 @@
 
 - ROS2 Humble
 - cartographer_ros 包
+- nav2_map_server 包（用于 `map_saver_cli` 保存栅格地图）
 - 2D 激光雷达（发布 `/scan` 话题）
-- 里程计数据（发布 `/odom` 话题）
-- TF 变换：`odom` -> `base_footprint`
 
 ### 构建编译
 
@@ -37,22 +36,58 @@ source install/setup.bash
 ros2 launch cartographer_run cartographer_2d.launch.py
 ```
 
+### 保存地图
+
+建图完成后，先结束当前轨迹，再保存 Cartographer 状态文件（`.pbstream`）：
+
+```bash
+ros2 service call /finish_trajectory cartographer_ros_msgs/srv/FinishTrajectory "{trajectory_id: 0}"
+ros2 service call /write_state cartographer_ros_msgs/srv/WriteState "{filename: '${HOME}/map.pbstream', include_unfinished_submaps: true}"
+```
+
+如需保存给导航栈使用的 2D 栅格地图（`.pgm` + `.yaml`），可在 `/map` 正常发布后执行：
+
+```bash
+ros2 run nav2_map_server map_saver_cli -f ${HOME}/map
+```
+
+### 纯定位运行示例
+
+`cartographer_2d_localization_launch.py` 用于加载已保存的 `.pbstream` 地图并进入纯定位模式。启动时必须指定 `load_state_filename`：
+
+```bash
+ros2 launch cartographer_run cartographer_2d_localization_launch.py load_state_filename:=${HOME}/map.pbstream
+```
+
+如需指定自定义配置文件或调整栅格地图发布参数：
+
+```bash
+ros2 launch cartographer_run cartographer_2d_localization_launch.py \
+  load_state_filename:=${HOME}/map.pbstream \
+  configuration_basename:=lds_2d_localization.lua \
+  resolution:=0.05 \
+  publish_period_sec:=1.0
+```
+
 **启动参数：**
+
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
 | `use_sim_time` | false | 是否使用仿真时间 |
 | `resolution` | 0.05 | 地图分辨率 (m/cell) |
 | `publish_period_sec` | 1.0 | 地图发布周期 (秒) |
 | `configuration_directory` | config/ | 配置文件目录 |
-| `configuration_basename` | lds_2d.lua | 配置文件名 |
+| `configuration_basename` | lds_2d.lua / lds_2d_localization.lua | 配置文件名；建图默认 `lds_2d.lua`，纯定位默认 `lds_2d_localization.lua` |
+| `load_state_filename` | 无 | 纯定位模式加载的 `.pbstream` 地图文件路径，使用 `cartographer_2d_localization_launch.py` 时必填 |
 
 **话题订阅：**
+
 | 话题 | 类型 | 说明 |
 |------|------|------|
 | `/scan` | sensor_msgs/LaserScan | 2D 激光扫描数据 |
-| `/odom` | nav_msgs/Odometry | 里程计数据 |
 
 **话题发布：**
+
 | 话题 | 类型 | 说明 |
 |------|------|------|
 | `/map` | nav_msgs/OccupancyGrid | 栅格地图 |
@@ -65,7 +100,7 @@ ros2 launch cartographer_run cartographer_2d.launch.py
 ## 常见问题
 
 **Q: 建图漂移严重？**
-A: 检查里程计精度，确保 TF 变换正确，调整 `lds_2d.lua` 中的参数。
+A: 确保 TF 变换正确，调整 `lds_2d.lua` 中的参数。
 
 **Q: 地图更新慢？**
 A: 减小 `publish_period_sec` 参数值。
