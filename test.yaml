@@ -1,0 +1,38 @@
+## Copyright (C) 2026 SpacemiT (Hangzhou) Technology Co. Ltd.
+## SPDX-License-Identifier: Apache-2.0
+
+module: middleware/ros2/slam/cartographer_run
+
+tests:
+  - name: cartographer-2d-rosbag-slam
+    description: >-
+      Replays recorded LaserScan/TF data through cartographer_2d.launch.py and
+      verifies Cartographer publishes a non-empty occupancy grid map.
+    category: functional
+    scopes: [pr]
+    timeout_s: 180
+    workdir: sdk
+    requires:
+      commands: [bash, python3]
+      files:
+        - middleware/ros2/slam/cartographer_run/tests/carto_slam_test_data/metadata.yaml
+        - middleware/ros2/slam/cartographer_run/tests/carto_slam_test_data/carto_slam_test_data_0.db3
+    artifacts:
+      - output/test/pr/middleware__ros2__slam__cartographer_run/modules/middleware__ros2__slam__cartographer_run/logs/cartographer_2d_rosbag_slam.log
+    command: |
+      bash middleware/ros2/slam/cartographer_run/tests/test_cartographer_2d_rosbag_slam.sh
+
+  - name: cartographer-invalid-config
+    description: >-
+      Starts cartographer_2d.launch.py with a missing Lua configuration file and
+      verifies the launch fails quickly with an explicit configuration error.
+    category: functional
+    scopes: [pr]
+    timeout_s: 60
+    workdir: sdk
+    requires:
+      commands: [bash, python3]
+    artifacts:
+      - output/test/pr/middleware__ros2__slam__cartographer_run/modules/middleware__ros2__slam__cartographer_run/logs/cartographer_invalid_config.log
+    command: |
+      bash middleware/ros2/slam/cartographer_run/tests/test_cartographer_invalid_config.sh
