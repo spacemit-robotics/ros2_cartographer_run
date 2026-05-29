@@ -11,6 +11,7 @@
 - 实时栅格地图发布
 - 可配置的地图分辨率和发布周期
 - 支持仿真时间模式
+- 可选 IMU 数据融合
 
 
 ## 快速开始
@@ -21,6 +22,7 @@
 - cartographer_ros 包
 - nav2_map_server 包（用于 `map_saver_cli` 保存栅格地图）
 - 2D 激光雷达（发布 `/scan` 话题）
+- IMU（可选，启用 `use_imu:=true` 时发布 `/imu` 话题，并提供 `imu_link` 到机器人底盘的 TF）
 
 ### 构建编译
 
@@ -34,6 +36,22 @@ source install/setup.bash
 
 ```bash
 ros2 launch cartographer_run cartographer_2d.launch.py
+```
+
+启用 IMU 数据融合时：
+
+```bash
+ros2 launch cartographer_run cartographer_2d.launch.py use_imu:=true
+```
+
+如需指定自定义配置文件或调整栅格地图发布参数：
+
+```bash
+ros2 launch cartographer_run cartographer_2d.launch.py \
+  use_imu:=true \
+  imu_configuration_basename:=lds_2d_imu.lua \
+  resolution:=0.05 \
+  publish_period_sec:=1.0
 ```
 
 ### 保存地图
@@ -78,6 +96,8 @@ ros2 launch cartographer_run cartographer_2d_localization_launch.py \
 | `publish_period_sec` | 1.0 | 地图发布周期 (秒) |
 | `configuration_directory` | config/ | 配置文件目录 |
 | `configuration_basename` | lds_2d.lua / lds_2d_localization.lua | 配置文件名；建图默认 `lds_2d.lua`，纯定位默认 `lds_2d_localization.lua` |
+| `use_imu` | false | 建图模式是否启用 IMU 数据融合；仅 `cartographer_2d.launch.py` 支持 |
+| `imu_configuration_basename` | lds_2d_imu.lua | `use_imu:=true` 时使用的建图配置文件名 |
 | `load_state_filename` | 无 | 纯定位模式加载的 `.pbstream` 地图文件路径，使用 `cartographer_2d_localization_launch.py` 时必填 |
 
 **话题订阅：**
@@ -85,6 +105,7 @@ ros2 launch cartographer_run cartographer_2d_localization_launch.py \
 | 话题 | 类型 | 说明 |
 |------|------|------|
 | `/scan` | sensor_msgs/LaserScan | 2D 激光扫描数据 |
+| `/imu` | sensor_msgs/Imu | IMU 数据，仅 `use_imu:=true` 时需要 |
 
 **话题发布：**
 
@@ -101,6 +122,9 @@ ros2 launch cartographer_run cartographer_2d_localization_launch.py \
 
 **Q: 建图漂移严重？**
 A: 确保 TF 变换正确，调整 `lds_2d.lua` 中的参数。
+
+**Q: 启用 IMU 后无法建图？**
+A: 确认 `/imu` 话题正常发布，并存在 `imu_link` 到 `base_footprint` 的 TF 变换；如实际 IMU 坐标系不同，请同步修改 `lds_2d_imu.lua` 中的 `tracking_frame`。
 
 **Q: 地图更新慢？**
 A: 减小 `publish_period_sec` 参数值。

@@ -11,6 +11,7 @@ A ROS2 SLAM launch package based on Google Cartographer, providing launch files 
 - Real-time occupancy grid map publishing
 - Configurable map resolution and publish period
 - Simulation time mode support
+- Optional IMU data fusion
 
 
 ## Quick Start
@@ -21,6 +22,7 @@ A ROS2 SLAM launch package based on Google Cartographer, providing launch files 
 - cartographer_ros package
 - nav2_map_server package (for saving occupancy grid maps with `map_saver_cli`)
 - 2D LiDAR (publishing `/scan` topic)
+- IMU (optional, required when launching with `use_imu:=true`; publish the `/imu` topic and provide TF from `imu_link` to the robot base frame)
 
 ### Build
 
@@ -34,6 +36,22 @@ source install/setup.bash
 
 ```bash
 ros2 launch cartographer_run cartographer_2d.launch.py
+```
+
+To enable IMU data fusion:
+
+```bash
+ros2 launch cartographer_run cartographer_2d.launch.py use_imu:=true
+```
+
+To specify a custom configuration file or adjust occupancy grid publishing parameters:
+
+```bash
+ros2 launch cartographer_run cartographer_2d.launch.py \
+  use_imu:=true \
+  imu_configuration_basename:=lds_2d_imu.lua \
+  resolution:=0.05 \
+  publish_period_sec:=1.0
 ```
 
 ### Save Map
@@ -78,6 +96,8 @@ ros2 launch cartographer_run cartographer_2d_localization_launch.py \
 | `publish_period_sec` | 1.0 | Map publish period (seconds) |
 | `configuration_directory` | config/ | Configuration file directory |
 | `configuration_basename` | lds_2d.lua / lds_2d_localization.lua | Configuration file name; mapping uses `lds_2d.lua` by default, and pure localization uses `lds_2d_localization.lua` by default |
+| `use_imu` | false | Whether to enable IMU data fusion in mapping mode; supported only by `cartographer_2d.launch.py` |
+| `imu_configuration_basename` | lds_2d_imu.lua | Mapping configuration file used when `use_imu:=true` |
 | `load_state_filename` | None | Path to the `.pbstream` map file loaded in pure localization mode; required when using `cartographer_2d_localization_launch.py` |
 
 **Subscribed Topics:**
@@ -85,6 +105,7 @@ ros2 launch cartographer_run cartographer_2d_localization_launch.py \
 | Topic | Type | Description |
 |-------|------|-------------|
 | `/scan` | sensor_msgs/LaserScan | 2D laser scan data |
+| `/imu` | sensor_msgs/Imu | IMU data, required only when `use_imu:=true` |
 
 **Published Topics:**
 
@@ -101,6 +122,9 @@ See [Cartographer ROS Official Documentation](https://google-cartographer-ros.re
 
 **Q: Severe map drift?**
 A: Ensure TF transforms are correct, adjust parameters in `lds_2d.lua`.
+
+**Q: Mapping does not work after enabling IMU?**
+A: Ensure the `/imu` topic is published and TF from `imu_link` to `base_footprint` exists. If your actual IMU frame is different, update `tracking_frame` in `lds_2d_imu.lua` accordingly.
 
 **Q: Slow map updates?**
 A: Decrease the `publish_period_sec` parameter value.
