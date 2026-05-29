@@ -6,6 +6,8 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -25,6 +27,11 @@ def generate_launch_description():
         'configuration_directory', default=os.path.join(pkg_share_dir, 'config'))
     # Configuration file name
     configuration_basename = LaunchConfiguration('configuration_basename', default='lds_2d.lua')
+    # Whether to use IMU data
+    use_imu = LaunchConfiguration('use_imu', default='false')
+    # Configuration file name with IMU data enabled
+    imu_configuration_basename = LaunchConfiguration(
+        'imu_configuration_basename', default='lds_2d_imu.lua')
 
     # Launch nodes: cartographer_node, cartographer_occupancy_grid_node
     cartographer_node = Node(
@@ -32,9 +39,20 @@ def generate_launch_description():
         executable='cartographer_node',
         name='cartographer_node',
         output='screen',
+        condition=UnlessCondition(use_imu),
         parameters=[{'use_sim_time': use_sim_time}],
         arguments=['-configuration_directory', configuration_directory,
                    '-configuration_basename', configuration_basename])
+
+    imu_cartographer_node = Node(
+        package='cartographer_ros',
+        executable='cartographer_node',
+        name='cartographer_node',
+        output='screen',
+        condition=IfCondition(use_imu),
+        parameters=[{'use_sim_time': use_sim_time}],
+        arguments=['-configuration_directory', configuration_directory,
+                   '-configuration_basename', imu_configuration_basename])
 
     cartographer_occupancy_grid_node = Node(
         package='cartographer_ros',
@@ -46,7 +64,36 @@ def generate_launch_description():
 
 
     ld = LaunchDescription()
+    ld.add_action(DeclareLaunchArgument(
+        'use_sim_time',
+        default_value='false',
+        description='Use simulation clock if true'))
+    ld.add_action(DeclareLaunchArgument(
+        'resolution',
+        default_value='0.05',
+        description='Resolution of a grid cell in the published occupancy grid'))
+    ld.add_action(DeclareLaunchArgument(
+        'publish_period_sec',
+        default_value='1.0',
+        description='Occupancy grid publishing period in seconds'))
+    ld.add_action(DeclareLaunchArgument(
+        'configuration_directory',
+        default_value=os.path.join(pkg_share_dir, 'config'),
+        description='Path to the Cartographer configuration directory'))
+    ld.add_action(DeclareLaunchArgument(
+        'configuration_basename',
+        default_value='lds_2d.lua',
+        description='Cartographer configuration file name used when use_imu is false'))
+    ld.add_action(DeclareLaunchArgument(
+        'imu_configuration_basename',
+        default_value='lds_2d_imu.lua',
+        description='Cartographer configuration file name used when use_imu is true'))
+    ld.add_action(DeclareLaunchArgument(
+        'use_imu',
+        default_value='false',
+        description='Use IMU data in Cartographer if true'))
     ld.add_action(cartographer_node)
+    ld.add_action(imu_cartographer_node)
     ld.add_action(cartographer_occupancy_grid_node)
 
     return ld
